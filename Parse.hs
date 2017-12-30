@@ -15,13 +15,13 @@ import Expression
 					
 -- Fonction sur les listes
 containErr :: Expression -> Bool
-containErr exp = case exp of
-	Var v -> do
-		case v of
-			Inconnue xs -> (xs == "")
-			otherwise -> False
-	ortherwise -> False
-	
+containErr (Add a b) = containErr a || containErr b
+containErr (Mult a b) = containErr a || containErr b
+containErr (Expo a b) = containErr a || containErr b
+containErr (Var e) = case e of
+	Inconnue xs -> (xs == "")
+	otherwise -> False
+
 
 -- Fonction pour suprimmer les espaces
 noSpace :: String -> String
@@ -30,11 +30,17 @@ noSpace input = concat (words input)
 
 -- Fonctions de construction d'expression
 expr :: Parser Expression
-expr = do
-	t <- term
-	e <- expB t
-	return e
-	
+expr = try
+	(
+	do
+		t <- term
+		e <- expB t
+		return e
+	)
+	<|>
+	do
+		return (Var (Inconnue "")) 
+
 expB :: Expression -> Parser Expression
 expB h = try 
 	(
@@ -62,11 +68,17 @@ expB h = try
 		return (Var (Inconnue "")) 
 	
 term :: Parser Expression
-term = do
-	p <- pow
-	t <- terB p
-	return t
-	
+term = try
+	(
+	do
+		p <- pow
+		t <- terB p
+		return t
+	)
+	<|>
+	do
+		return (Var (Inconnue "")) 	
+
 terB :: Expression -> Parser Expression
 terB h = try
 	(
@@ -86,10 +98,16 @@ terB h = try
 		return (Var (Inconnue "")) 
 	
 pow :: Parser Expression
-pow = do
-	n <- neg
-	p <- powB n
-	return p
+pow = try 
+	(
+	do
+		n <- neg
+		p <- powB n
+		return p
+	)
+	<|>
+	do
+		return (Var (Inconnue "")) 
 	
 powB :: Expression -> Parser Expression
 powB h = try
@@ -145,9 +163,12 @@ fac = try
 	<|>
 	try (
 	do
-		b <- many letter
+		b <- many1 letter
 		return (Var (Inconnue b))
 	)
+	<|>
+	do
+		return (Var (Inconnue "")) 
 	
 	
 -- Fonction qui retourne une maybe expression
@@ -157,5 +178,5 @@ isExp xs =
 		e = partitionEithers ((parse expr "" (noSpace xs)):[]) 
 	in
 		if containErr (head (snd e))
-			then Just (head (snd e))
-			else Nothing
+			then Nothing
+			else Just (head (snd e))
